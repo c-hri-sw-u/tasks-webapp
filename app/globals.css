@@ -1,37 +1,71 @@
-* {
+/* Base styles */
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-  background: #f5f5f5;
-  color: #333;
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  background: #f8fafc;
+  color: #0f172a;
+  line-height: 1.6;
+  min-height: 100dvh;
+}
+
+/* Screen reader only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Container */
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 20px;
+  padding: clamp(1rem, 5vw, 2rem);
 }
 
-h1 {
+/* Page title */
+.page-title {
   text-align: center;
-  margin-bottom: 30px;
-  color: #1a1a1a;
+  margin-bottom: clamp(1.5rem, 4vw, 2rem);
+  color: #0f172a;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  font-weight: 700;
+  text-wrap: balance;
 }
 
-.loading {
+/* Error banner */
+.error-banner {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
   text-align: center;
-  padding: 40px;
-  color: #666;
 }
 
+/* Form */
 .add-task-form {
   display: flex;
-  gap: 10px;
-  margin-bottom: 30px;
+  gap: 0.75rem;
+  margin-bottom: clamp(1.5rem, 4vw, 2rem);
   max-width: 600px;
   margin-left: auto;
   margin-right: auto;
@@ -39,130 +73,267 @@ h1 {
 
 .add-task-form input {
   flex: 1;
-  padding: 12px;
-  border: 2px solid #ddd;
+  padding: 0.75rem 1rem;
+  border: 2px solid #e2e8f0;
   border-radius: 8px;
-  font-size: 16px;
+  font-size: 1rem;
+  background: #ffffff;
+  color: #0f172a;
+  transition: border-color 150ms ease-out;
 }
 
 .add-task-form input:focus {
   outline: none;
-  border-color: #0070f3;
+  border-color: #3b82f6;
+}
+
+.add-task-form input:disabled {
+  background: #f1f5f9;
+  cursor: not-allowed;
 }
 
 .add-task-form button {
-  padding: 12px 24px;
-  background: #0070f3;
-  color: white;
+  padding: 0.75rem 1.5rem;
+  background: #3b82f6;
+  color: #ffffff;
   border: none;
   border-radius: 8px;
-  font-size: 16px;
+  font-size: 1rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: opacity 150ms ease-out, transform 150ms ease-out;
+  white-space: nowrap;
 }
 
-.add-task-form button:hover {
-  background: #0060df;
+.add-task-form button:hover:not(:disabled) {
+  opacity: 0.9;
 }
 
+.add-task-form button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.add-task-form button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Board */
 .board {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 20px;
+  gap: 1.25rem;
+  align-items: start;
 }
 
+/* Column */
 .column {
-  background: white;
+  background: #ffffff;
   border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  min-height: 300px;
 }
 
-.column h2 {
-  margin-bottom: 15px;
-  padding-bottom: 10px;
+.column-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  padding-bottom: 0.625rem;
   border-bottom: 2px solid;
-  font-size: 20px;
-}
-
-.column.blue h2 {
-  border-color: #0070f3;
-  color: #0070f3;
-}
-
-.column.orange h2 {
-  border-color: #ff6b00;
-  color: #ff6b00;
-}
-
-.column.green h2 {
-  border-color: #28a745;
-  color: #28a745;
-}
-
-.column ul {
-  list-style: none;
-  min-height: 100px;
-}
-
-.column li {
-  background: #f9f9f9;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 10px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  transition: all 0.2s;
+  gap: 0.5rem;
 }
 
-.column li:hover {
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transform: translateY(-1px);
+.column-blue .column-title {
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+.column-orange .column-title {
+  border-color: #f97316;
+  color: #f97316;
+}
+
+.column-green .column-title {
+  border-color: #22c55e;
+  color: #22c55e;
+}
+
+.task-count {
+  font-size: 0.875rem;
+  font-weight: 500;
+  opacity: 0.8;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Task list */
+.task-list {
+  list-style: none;
+  min-height: 150px;
+}
+
+.task-item {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 0.625rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  transition: transform 150ms ease-out, box-shadow 150ms ease-out;
+}
+
+.task-item:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .task-text {
   flex: 1;
   word-break: break-word;
-  padding-right: 10px;
+  line-height: 1.5;
+  text-wrap: pretty;
 }
 
 .task-actions {
   display: flex;
-  gap: 5px;
+  gap: 0.375rem;
   flex-shrink: 0;
 }
 
 .task-actions button {
   width: 28px;
   height: 28px;
-  border: 1px solid #ddd;
-  background: white;
+  min-width: 28px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 1rem;
+  color: #64748b;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: opacity 150ms ease-out, transform 150ms ease-out;
 }
 
-.task-actions button:hover {
-  background: #f0f0f0;
-  border-color: #ccc;
+.task-actions button:hover:not(:disabled) {
+  opacity: 0.8;
+}
+
+.task-actions button:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.task-actions button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .task-actions button.delete-btn {
-  color: #dc3545;
-  border-color: #dc3545;
+  color: #ef4444;
+  border-color: #fca5a5;
 }
 
-.task-actions button.delete-btn:hover {
-  background: #dc3545;
-  color: white;
+.task-actions button.delete-btn:hover:not(:disabled) {
+  background: #fee2e2;
 }
 
+.empty-state {
+  text-align: center;
+  color: #94a3b8;
+  font-style: italic;
+  padding: 2rem 1rem;
+  font-size: 0.875rem;
+}
+
+/* Loading skeleton */
+.loading-container {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(1rem, 5vw, 2rem);
+}
+
+.loading-skeleton {
+  max-width: 1200px;
+  width: 100%;
+}
+
+.skeleton-text {
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+}
+
+.skeleton-title {
+  height: 2.5rem;
+  margin: 0 auto 2rem;
+  max-width: 300px;
+  border-radius: 4px;
+}
+
+.skeleton-form {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.skeleton-input {
+  flex: 1;
+  height: 3.25rem;
+  border-radius: 8px;
+}
+
+.skeleton-button {
+  width: 120px;
+  height: 3.25rem;
+  border-radius: 8px;
+}
+
+.skeleton-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.25rem;
+}
+
+.skeleton-column {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 1.25rem;
+  min-height: 300px;
+}
+
+.skeleton-column-header {
+  height: 2rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.skeleton-task {
+  height: 3rem;
+  border-radius: 8px;
+  margin-bottom: 0.625rem;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Responsive */
 @media (max-width: 768px) {
   .board {
     grid-template-columns: 1fr;
@@ -174,5 +345,28 @@ h1 {
 
   .add-task-form button {
     width: 100%;
+  }
+
+  .task-item {
+    flex-wrap: wrap;
+  }
+
+  .task-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .skeleton-text {
+    animation: none;
   }
 }
