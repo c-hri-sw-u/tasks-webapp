@@ -1,20 +1,23 @@
 import './globals.css';
+import { Providers } from './providers';
 
 export const metadata = {
-  title: 'Task Manager - 极简任务管理',
-  description: '基于 Markdown 和 Next.js 的 Kanban 任务管理器',
+  title: 'Task Manager - Minimalist Task Management',
+  description: 'A minimalist Kanban task manager based on Markdown and Next.js',
   robots: 'index, follow',
   openGraph: {
-    title: 'Task Manager - 极简任务管理',
-    description: '基于 Markdown 和 Next.js 的 Kanban 任务管理器',
+    title: 'Task Manager - Minimalist Task Management',
+    description: 'A minimalist Kanban task manager based on Markdown and Next.js',
     type: 'website',
   },
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="zh-CN">
-      <body>{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

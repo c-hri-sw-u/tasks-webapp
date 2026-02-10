@@ -76,7 +76,7 @@ export async function GET(request) {
       const botFile = path.join(archivePath, 'bot_overnight.md');
       try {
         const botContent = await fs.readFile(botFile, 'utf-8');
-        botTasks = parseSimpleList(botContent, '# 💤 睡眠时我可以帮你做什么');
+        botTasks = parseSimpleList(botContent, '# 💤 Sleep Tasks');
       } catch (error) {
         // File doesn't exist
       }
@@ -86,7 +86,7 @@ export async function GET(request) {
       const planFile = path.join(archivePath, 'plan.md');
       try {
         const planContent = await fs.readFile(planFile, 'utf-8');
-        planTasks = parseSimpleList(planContent, '# 📋 明天的计划');
+        planTasks = parseSimpleList(planContent, '# 📋 Tomorrow\'s Plan');
       } catch (error) {
         // File doesn't exist
       }

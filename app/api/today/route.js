@@ -55,7 +55,7 @@ function parseSimpleList(content, sectionStart) {
       break;
     }
 
-    if (inSection && line.startsWith('- [') && !line.includes('*(此文件由')) {
+    if (inSection && line.startsWith('- [') && !line.includes('*(This file') && !line.includes('*(此文件')) {
       const idMatch = line.match(/\[#([a-zA-Z0-9_-]+)\]/);
       const id = idMatch ? idMatch[1] : Date.now().toString();
       const text = line.replace(/^- \[[ x]\] \[#([a-zA-Z0-9_-]+)\] /, '').trim();
@@ -130,7 +130,7 @@ export async function GET() {
     let botTasks = [];
     try {
       const botContent = await fs.readFile(botFile, 'utf-8');
-      botTasks = parseSimpleList(botContent, '# 💤 睡眠时我可以帮你做什么');
+      botTasks = parseSimpleList(botContent, '# 💤 Sleep Tasks');
     } catch (error) {
       // File doesn't exist
     }
@@ -140,7 +140,7 @@ export async function GET() {
     let tomorrowTasks = [];
     try {
       const planContent = await fs.readFile(planFile, 'utf-8');
-      tomorrowTasks = parseSimpleList(planContent, '# 📋 明天的计划');
+      tomorrowTasks = parseSimpleList(planContent, '# 📋 Tomorrow\'s Plan');
     } catch (error) {
       // File doesn't exist
     }
@@ -152,7 +152,7 @@ export async function GET() {
     });
   } catch (error) {
     // Day track file doesn't exist, create it
-    const initialContent = `# ${today} 任务追踪
+    const initialContent = `# ${today} Task Tracker
 
 ## 📋 Backlog
 
@@ -160,7 +160,7 @@ export async function GET() {
 
 ## ✅ Done
 
-## 💤 睡眠后台任务
+## 💤 Sleep Background Tasks
 `;
     await fs.writeFile(dayTrackFile, initialContent);
 

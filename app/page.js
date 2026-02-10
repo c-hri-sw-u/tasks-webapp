@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { cn } from '../lib/utils';
-import { getTodayDate } from '../lib/date-utils';
+import { cn } from '@/lib/utils';
+import { api } from '@/lib/api';
 import {
   DndContext,
   closestCorners,
@@ -18,9 +18,28 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import SortableTaskItem from '../components/SortableTaskItem';
-import KanbanColumn from '../components/KanbanColumn';
-import TrashZone from '../components/TrashZone';
+import SortableTaskItem from '@/components/SortableTaskItem';
+import KanbanColumn from '@/components/KanbanColumn';
+import TrashZone from '@/components/TrashZone';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { ThemeSwitcher } from '@/components/ui/theme-switcher';
+import {
+  CalendarDays,
+  Moon,
+  Clock,
+  ListChecks,
+  Plus,
+  ArrowLeft,
+  CheckCircle2,
+  Circle,
+  Trash2,
+  Loader2,
+  CheckSquare
+} from 'lucide-react';
 
 export default function Home() {
   const [view, setView] = useState('today');
@@ -45,7 +64,6 @@ export default function Home() {
     })
   );
 
-  // Keep tasksRef in sync with tasks state
   useEffect(() => {
     tasksRef.current = tasks;
   }, [tasks]);
@@ -73,61 +91,48 @@ export default function Home() {
       }
     } catch (error) {
       console.error('Failed to fetch data:', error);
-      setError('加载数据失败，请刷新页面重试');
+      setError('Failed to load data, please refresh and try again');
     } finally {
       setIsLoading(false);
     }
   };
 
   const fetchTodayData = async () => {
-    const res = await fetch('/api/today');
-    const data = await res.json();
+    const data = await api.getTasks('today');
     setTasks(data.tasks || { backlog: [], inProgress: [], done: [] });
     setTomorrowTasks(data.tomorrowTasks || []);
   };
 
   const fetchNightData = async () => {
-    const res = await fetch('/api/today');
-    const data = await res.json();
+    const data = await api.getTasks('night');
     setBotTasks(data.botTasks || []);
     setTomorrowTasks(data.tomorrowTasks || []);
   };
 
   const fetchArchivedDates = async () => {
-    const res = await fetch('/api/history');
-    const data = await res.json();
+    const data = await api.getHistory();
     setArchivedDates(data.dates || []);
     setHistoryTasks(null);
   };
 
   const fetchHistoryData = async (date) => {
-    const res = await fetch(`/api/history?date=${date}`);
-    const data = await res.json();
+    const data = await api.getHistory(date);
     setHistoryTasks(data);
   };
 
   const fetchWeeklyData = async () => {
-    const res = await fetch('/api/weekly');
-    const data = await res.json();
+    const data = await api.getTasks('weekly');
     setWeeklyTasks(data.tasks || []);
   };
 
-  const findSection = (id) => {
-    if (id in tasks) return id;
-    if (tasks.backlog.find(t => t.id === id)) return 'backlog';
-    if (tasks.inProgress.find(t => t.id === id)) return 'inProgress';
-    if (tasks.done.find(t => t.id === id)) return 'done';
+  const findTask = (id) => {
+    if (tasks.backlog.find(t => t.id === id)) return tasks.backlog.find(t => t.id === id);
+    if (tasks.inProgress.find(t => t.id === id)) return tasks.inProgress.find(t => t.id === id);
+    if (tasks.done.find(t => t.id === id)) return tasks.done.find(t => t.id === id);
     return null;
   };
 
-  const findTask = (id) => {
-    const section = findSection(id);
-    if (!section) return null;
-    return tasks[section].find(t => t.id === id);
-  };
-
   const handleDragStart = (event) => {
-    console.log('=== DragStart ===', event.active.id);
     setActiveId(event.active.id);
   };
 
@@ -138,10 +143,8 @@ export default function Home() {
     if (!overId || active.id === overId) return;
 
     setTasks((prev) => {
-      // Check if overId is a column id
       const isOverColumn = overId in prev;
 
-      // Find which section the active task is in
       let activeSection = null;
       let activeIndex = -1;
       for (const section of ['backlog', 'inProgress', 'done']) {
@@ -155,15 +158,12 @@ export default function Home() {
 
       if (!activeSection || activeIndex === -1) return prev;
 
-      // Determine target section
       let overSection = null;
       let overIndex = -1;
 
       if (isOverColumn) {
-        // Dropped on column itself (empty area)
         overSection = overId;
       } else {
-        // Dropped on a task - find which section it's in
         for (const section of ['backlog', 'inProgress', 'done']) {
           const idx = prev[section].findIndex(t => t.id === overId);
           if (idx !== -1) {
@@ -178,43 +178,31 @@ export default function Home() {
 
       const activeTask = prev[activeSection][activeIndex];
 
-      // Same section - reorder
       if (activeSection === overSection && !isOverColumn) {
         if (overIndex === -1 || activeIndex === overIndex) return prev;
 
         const newItems = arrayMove(prev[activeSection], activeIndex, overIndex);
-        const newTasks = {
-          ...prev,
-          [activeSection]: newItems,
-        };
+        const newTasks = { ...prev, [activeSection]: newItems };
         tasksRef.current = newTasks;
         return newTasks;
       }
 
-      // Cross section or dropped on column
       let newIndex;
       if (isOverColumn || overIndex === -1) {
         newIndex = prev[overSection].length;
       } else {
         const isBelowOverItem =
-          over &&
-          active.rect.current.translated &&
-          active.rect.current.translated.top >
-          over.rect.top + over.rect.height;
+          over && active.rect.current.translated &&
+          active.rect.current.translated.top > over.rect.top + over.rect.height;
         newIndex = overIndex + (isBelowOverItem ? 1 : 0);
       }
 
-      // Remove from source, add to target
       const newSourceItems = prev[activeSection].filter(item => item.id !== active.id);
       const newTargetItems = [...prev[overSection]];
 
-      // If same section (dropped on column in same section), just move to end
       if (activeSection === overSection) {
         newTargetItems.splice(newIndex, 0, activeTask);
-        const newTasks = {
-          ...prev,
-          [activeSection]: newTargetItems,
-        };
+        const newTasks = { ...prev, [activeSection]: newTargetItems };
         tasksRef.current = newTasks;
         return newTasks;
       }
@@ -237,17 +225,13 @@ export default function Home() {
     const activeId = active.id;
     const overId = over?.id;
 
-    console.log('=== DragEnd ===', activeId, 'over:', overId);
     setActiveId(null);
 
-    // Check if dropped on trash
     if (overId === 'trash') {
-      console.log('Deleting task:', activeId);
       await deleteTask(activeId);
       return;
     }
 
-    // Find current position in tasksRef (after handleDragOver updates)
     const currentTasks = tasksRef.current;
     let endSection = null;
     let endIndex = -1;
@@ -261,26 +245,13 @@ export default function Home() {
       }
     }
 
-    console.log('Persisting:', { endSection, endIndex });
-
     if (endSection && endIndex !== -1) {
       try {
-        await fetch('/api/today', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            taskId: activeId,
-            status: endSection,
-            newIndex: endIndex
-          })
-        });
-        console.log('Persist success');
+        await api.updateTask(activeId, { status: endSection, newIndex: endIndex });
       } catch (e) {
         console.error('Persist failed', e);
         fetchTodayData();
       }
-    } else {
-      console.error('Task not found in tasksRef');
     }
   };
 
@@ -290,44 +261,23 @@ export default function Home() {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/today', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: newTask, status: 'backlog' })
-      });
-      if (!response.ok) {
-        throw new Error('Failed to add task');
-      }
+      await api.addTask(newTask, 'backlog');
       setNewTask('');
       await fetchTodayData();
     } catch (error) {
-      console.error('Failed to add task:', error);
-      setError('添加任务失败，请重试');
+      setError('Failed to add task, please try again');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Keep for compatibility with existing buttons if needed, or remove. 
-  // I will update SortableTaskItem to use onMove which calls this or API directly.
   const moveTask = async (taskId, newStatus) => {
-    // This is still useful for manual buttons
-    // Reuse the logic? Or just call API.
-    // To keep simple, just call API.
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/today', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ taskId, status: newStatus })
-      });
-      if (!response.ok) {
-        throw new Error('Failed to move task');
-      }
+      await api.updateTask(taskId, { status: newStatus });
       await fetchTodayData();
     } catch (error) {
-      console.error('Failed to move task:', error);
-      setError('移动任务失败，请重试');
+      setError('Failed to move task, please try again');
     } finally {
       setIsSubmitting(false);
     }
@@ -336,16 +286,10 @@ export default function Home() {
   const deleteTask = async (taskId) => {
     setIsSubmitting(true);
     try {
-      const response = await fetch(`/api/today?taskId=${taskId}`, {
-        method: 'DELETE'
-      });
-      if (!response.ok) {
-        throw new Error('Failed to delete task');
-      }
-      await fetchTodayData(); // Syncs state
+      await api.deleteTask(taskId);
+      await fetchTodayData();
     } catch (error) {
-      console.error('Failed to delete task:', error);
-      setError('删除任务失败，请重试');
+      setError('Failed to delete task, please try again');
     } finally {
       setIsSubmitting(false);
     }
@@ -354,36 +298,24 @@ export default function Home() {
   const saveEdit = async (taskId, newText, section) => {
     if (!newText.trim()) return;
 
-    // Optimistic update
     setTasks(prev => ({
       ...prev,
       [section]: prev[section].map(t => t.id === taskId ? { ...t, text: newText } : t)
     }));
 
     try {
-      const response = await fetch('/api/today', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ taskId, text: newText })
-      });
-      if (!response.ok) {
-        throw new Error('Failed to update task');
-      }
+      await api.updateTask(taskId, { text: newText });
     } catch (error) {
-      console.error('Failed to update task:', error);
-      setError('更新任务失败，请重试');
-      await fetchTodayData(); // Revert
+      setError('Failed to update task, please try again');
+      await fetchTodayData();
     }
   };
 
   const toggleFlag = async (taskId, section) => {
-    // Optimistic update
     setTasks(prev => {
       const newTasks = {
         ...prev,
-        [section]: prev[section].map(t =>
-          t.id === taskId ? { ...t, flagged: !t.flagged } : t
-        )
+        [section]: prev[section].map(t => t.id === taskId ? { ...t, flagged: !t.flagged } : t)
       };
       tasksRef.current = newTasks;
       return newTasks;
@@ -391,34 +323,18 @@ export default function Home() {
 
     try {
       const task = tasks[section].find(t => t.id === taskId);
-      const response = await fetch('/api/today', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ taskId, flagged: !task?.flagged })
-      });
-      if (!response.ok) {
-        throw new Error('Failed to toggle flag');
-      }
+      await api.updateTask(taskId, { flagged: !task?.flagged });
     } catch (error) {
-      console.error('Failed to toggle flag:', error);
-      await fetchTodayData(); // Revert
+      await fetchTodayData();
     }
   };
 
   const toggleWeeklyTask = async (taskId) => {
     try {
-      const response = await fetch('/api/weekly', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ taskId })
-      });
-      if (!response.ok) {
-        throw new Error('Failed to toggle task');
-      }
+      await api.updateTask(taskId, {}, 'weekly');
       await fetchWeeklyData();
     } catch (error) {
-      console.error('Failed to toggle task:', error);
-      setError('切换任务状态失败，请重试');
+      setError('Failed to toggle task status, please try again');
     }
   };
 
@@ -428,19 +344,11 @@ export default function Home() {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/weekly', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: newTask })
-      });
-      if (!response.ok) {
-        throw new Error('Failed to add task');
-      }
+      await api.addTask(newTask, 'backlog', 'weekly');
       setNewTask('');
       await fetchWeeklyData();
     } catch (error) {
-      console.error('Failed to add task:', error);
-      setError('添加任务失败，请重试');
+      setError('Failed to add task, please try again');
     } finally {
       setIsSubmitting(false);
     }
@@ -448,344 +356,313 @@ export default function Home() {
 
   const deleteWeeklyTask = async (taskId) => {
     try {
-      const response = await fetch(`/api/weekly?taskId=${taskId}`, {
-        method: 'DELETE'
-      });
-      if (!response.ok) {
-        throw new Error('Failed to delete task');
-      }
+      await api.deleteTask(taskId, 'weekly');
       await fetchWeeklyData();
     } catch (error) {
-      console.error('Failed to delete task:', error);
-      setError('删除任务失败，请重试');
+      setError('Failed to delete task, please try again');
     }
   };
 
   if (isLoading) {
-    return <div className="loading">加载中...</div>;
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
   }
 
   return (
-    <main className="container">
-      <h1 className="page-title">Task Manager</h1>
-
-      {/* View Selector */}
-      <div className="view-selector" role="tablist" aria-label="视图选择">
-        <button
-          className={cn('view-btn', view === 'today' && 'active')}
-          onClick={() => { setView('today'); setSelectedDate(null); }}
-          role="tab"
-          aria-selected={view === 'today'}
-        >
-          📅 今日任务
-        </button>
-        <button
-          className={cn('view-btn', view === 'night' && 'active')}
-          onClick={() => { setView('night'); setSelectedDate(null); }}
-          role="tab"
-          aria-selected={view === 'night'}
-        >
-          💤 睡眠任务
-        </button>
-        <button
-          className={cn('view-btn', view === 'history' && 'active')}
-          onClick={() => { setView('history'); setSelectedDate(null); }}
-          role="tab"
-          aria-selected={view === 'history'}
-        >
-          🕰️ 历史回顾
-        </button>
-        <button
-          className={cn('view-btn', view === 'weekly' && 'active')}
-          onClick={() => { setView('weekly'); setSelectedDate(null); }}
-          role="tab"
-          aria-selected={view === 'weekly'}
-        >
-          📋 本周计划
-        </button>
-      </div>
-
-      {error && (
-        <div className="error-banner" role="alert">
-          {error}
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container flex h-14 items-center">
+          <div className="flex items-center space-x-2">
+            <CheckSquare className="h-6 w-6" />
+            <span className="font-bold">Task Manager</span>
+          </div>
+          <div className="flex flex-1 items-center justify-end space-x-2">
+            <ThemeSwitcher />
+          </div>
         </div>
-      )}
+      </header>
 
-      {/* Today View */}
-      {view === 'today' && (
-        <>
-          {/* Add Task Form */}
-          <form onSubmit={addTask} className="add-task-form">
-            <label htmlFor="new-task" className="sr-only">添加新任务</label>
-            <input
-              id="new-task"
-              type="text"
-              value={newTask}
-              onChange={(e) => setNewTask(e.target.value)}
-              placeholder="添加新任务..."
-              disabled={isSubmitting}
-              aria-describedby="task-help"
-            />
-            <span id="task-help" className="sr-only">
-              按 Enter 键或点击按钮添加任务到待办列表
-            </span>
-            <button type="submit" disabled={isSubmitting || !newTask.trim()}>
-              {isSubmitting ? '添加中...' : '添加任务'}
-            </button>
-          </form>
+      <main className="container py-6">
+        {/* Navigation Tabs */}
+        <Tabs value={view} onValueChange={(v) => { setView(v); setSelectedDate(null); }} className="mb-6">
+          <TabsList className="grid w-full max-w-md grid-cols-4">
+            <TabsTrigger value="today" className="text-xs sm:text-sm">
+              <CalendarDays className="mr-1.5 h-4 w-4" />
+              <span className="hidden sm:inline">Today</span>
+            </TabsTrigger>
+            <TabsTrigger value="night" className="text-xs sm:text-sm">
+              <Moon className="mr-1.5 h-4 w-4" />
+              <span className="hidden sm:inline">Sleep</span>
+            </TabsTrigger>
+            <TabsTrigger value="history" className="text-xs sm:text-sm">
+              <Clock className="mr-1.5 h-4 w-4" />
+              <span className="hidden sm:inline">History</span>
+            </TabsTrigger>
+            <TabsTrigger value="weekly" className="text-xs sm:text-sm">
+              <ListChecks className="mr-1.5 h-4 w-4" />
+              <span className="hidden sm:inline">Weekly</span>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
 
-          {/* Today's Board */}
-          {/* Today's Board */}
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCorners}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDragEnd={handleDragEnd}
-          >
-            <TrashZone isVisible={!!activeId} />
-            <div className="board">
-              {/* 昨晚的计划 (Read Only) */}
-              <section className="column column-gray" id="yesterday">
-                <h2 className="column-title">📋 昨晚的计划 <span className="task-count">{tomorrowTasks.length}</span></h2>
-                <ul className="task-list">
-                  {tomorrowTasks.map(task => (
-                    <li key={task.id} className="task-item">
-                      <span className="task-text">{task.text}</span>
-                      <button
-                        onClick={() => deleteTask(task.id)}
-                        className="delete-btn"
-                        disabled={isSubmitting}
-                        title="删除"
-                        aria-label="删除任务"
-                      >
-                        ×
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </section>
+        {error && (
+          <div className="mb-6 rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
+            {error}
+          </div>
+        )}
 
-              {/* 待办 */}
-              <KanbanColumn
-                id="backlog"
-                title="📋 待办"
-                tasks={tasks.backlog}
-                onDelete={deleteTask}
-                onEditSave={saveEdit}
-                onMove={moveTask}
-                onToggleFlag={toggleFlag}
-                colorClass="column-blue"
+        {/* Today View */}
+        {view === 'today' && (
+          <div className="space-y-6">
+            <form onSubmit={addTask} className="flex gap-2">
+              <Input
+                type="text"
+                value={newTask}
+                onChange={(e) => setNewTask(e.target.value)}
+                placeholder="Add new task..."
+                disabled={isSubmitting}
+                className="max-w-md"
               />
+              <Button type="submit" disabled={isSubmitting || !newTask.trim()}>
+                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                <span className="ml-1.5 hidden sm:inline">Add</span>
+              </Button>
+            </form>
 
-              {/* 进行中 */}
-              <KanbanColumn
-                id="inProgress"
-                title="🚀 进行中"
-                tasks={tasks.inProgress}
-                onDelete={deleteTask}
-                onEditSave={saveEdit}
-                onMove={moveTask}
-                onToggleFlag={toggleFlag}
-                colorClass="column-orange"
-              />
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCorners}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragEnd={handleDragEnd}
+            >
+              <TrashZone isVisible={!!activeId} />
 
-              {/* 已完成 */}
-              <KanbanColumn
-                id="done"
-                title="✅ 已完成"
-                tasks={tasks.done}
-                onDelete={deleteTask}
-                onEditSave={saveEdit}
-                onMove={moveTask}
-                onToggleFlag={toggleFlag}
-                colorClass="column-green"
-              />
-            </div>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 items-start">
+                {/* Yesterday's Plan */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Last Night's Plan</CardTitle>
+                    <CardDescription>{tomorrowTasks.length} Tasks</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {tomorrowTasks.length === 0 ? (
+                      <p className="py-4 text-center text-sm text-muted-foreground">No plans</p>
+                    ) : (
+                      tomorrowTasks.map(task => (
+                        <div key={task.id} className="group flex items-center justify-between rounded-md border px-3 py-2 text-sm">
+                          <span>{task.text}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 opacity-0 group-hover:opacity-100"
+                            onClick={() => deleteTask(task.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ))
+                    )}
+                  </CardContent>
+                </Card>
 
-            <DragOverlay>
-              {activeId ? (
-                <div className="task-item drag-overlay">
-                  <span className="task-text">{findTask(activeId)?.text}</span>
-                </div>
-              ) : null}
-            </DragOverlay>
-          </DndContext>
-        </>
-      )}
+                <KanbanColumn
+                  id="backlog"
+                  title="To Do"
+                  tasks={tasks.backlog}
+                  onDelete={deleteTask}
+                  onEditSave={saveEdit}
+                  onMove={moveTask}
+                  onToggleFlag={toggleFlag}
+                  variant="default"
+                />
 
-      {/* Night View */}
-      {view === 'night' && (
-        <>
-          {/* Bot Tasks */}
-          <section className="night-tasks" aria-labelledby="night-tasks-title">
-            <h2 id="night-tasks-title" className="section-title">
-              💤 睡眠时我可以帮你做什么
-            </h2>
-            <p className="section-hint">
-              这是昨晚收集的任务，我会在你睡觉时完成这些工作
-            </p>
-            <ul className="simple-list">
-              {botTasks.length === 0 && <li className="empty-state">暂无睡眠任务</li>}
-              {botTasks.map(task => (
-                <li key={task.id} className="simple-task">
-                  <span className="task-text">{task.text}</span>
-                  <span className="task-done">{task.done ? '✓' : '○'}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        </>
-      )}
+                <KanbanColumn
+                  id="inProgress"
+                  title="In Progress"
+                  tasks={tasks.inProgress}
+                  onDelete={deleteTask}
+                  onEditSave={saveEdit}
+                  onMove={moveTask}
+                  onToggleFlag={toggleFlag}
+                  variant="warning"
+                />
 
-      {/* History View */}
-      {view === 'history' && (
-        <>
-          {!selectedDate && (
-            <div className="history-dates">
-              <h2 className="section-title">🕰️ 历史记录</h2>
-              <ul className="date-list">
-                {archivedDates.length === 0 && <li className="empty-state">暂无历史记录</li>}
-                {archivedDates.map(date => (
-                  <li key={date}>
-                    <button className="date-btn" onClick={() => setSelectedDate(date)}>
-                      {date}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {selectedDate && historyTasks && (
-            <>
-              <button className="back-btn" onClick={() => setSelectedDate(null)}>
-                ← 返回日期列表
-              </button>
-
-              <h2 className="section-title">🕰️ {selectedDate} 的任务记录</h2>
-              <p className="section-hint">🔒 历史记录（只读）</p>
-
-              <div className="board">
-                <section className="column column-blue">
-                  <h2 className="column-title">📋 待办 <span className="task-count">{historyTasks.tasks?.backlog?.length || 0}</span></h2>
-                  <ul className="task-list">
-                    {historyTasks.tasks?.backlog?.map(task => (
-                      <li key={task.id} className="task-item">
-                        <span className="task-text">{task.text}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-                <section className="column column-orange">
-                  <h2 className="column-title">🚀 进行中 <span className="task-count">{historyTasks.tasks?.inProgress?.length || 0}</span></h2>
-                  <ul className="task-list">
-                    {historyTasks.tasks?.inProgress?.map(task => (
-                      <li key={task.id} className="task-item">
-                        <span className="task-text">{task.text}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-                <section className="column column-green">
-                  <h2 className="column-title">✅ 已完成 <span className="task-count">{historyTasks.tasks?.done?.length || 0}</span></h2>
-                  <ul className="task-list">
-                    {historyTasks.tasks?.done?.map(task => (
-                      <li key={task.id} className="task-item">
-                        <span className="task-text">{task.text}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
+                <KanbanColumn
+                  id="done"
+                  title="Done"
+                  tasks={tasks.done}
+                  onDelete={deleteTask}
+                  onEditSave={saveEdit}
+                  onMove={moveTask}
+                  onToggleFlag={toggleFlag}
+                  variant="success"
+                />
               </div>
 
-              {historyTasks.botTasks && historyTasks.botTasks.length > 0 && (
-                <section className="bot-tasks" aria-labelledby="history-bot-title">
-                  <h2 id="history-bot-title" className="section-title">💤 睡眠时完成的任务</h2>
-                  <ul className="simple-list">
-                    {historyTasks.botTasks.map(task => (
-                      <li key={task.id} className="simple-task">
-                        <span className="task-text">{task.text}</span>
-                        <span className="task-done">✓</span>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-
-              {historyTasks.plan && historyTasks.plan.length > 0 && (
-                <section className="tomorrow-tasks" aria-labelledby="history-plan-title">
-                  <h2 id="history-plan-title" className="section-title">📋 当时计划的任务</h2>
-                  <ul className="simple-list">
-                    {historyTasks.plan.map(task => (
-                      <li key={task.id} className="simple-task">
-                        <span className="task-text">{task.text}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-            </>
-          )}
-        </>
-      )}
-
-      {/* Weekly View */}
-      {view === 'weekly' && (
-        <>
-          <h2 className="section-title">📅 本周计划</h2>
-          <p className="section-hint">这是本周的整体计划，由 Weekly Check 每周日收集</p>
-
-          <form onSubmit={addWeeklyTask} className="add-task-form">
-            <label htmlFor="new-weekly-task" className="sr-only">添加本周任务</label>
-            <input
-              id="new-weekly-task"
-              type="text"
-              value={newTask}
-              onChange={(e) => setNewTask(e.target.value)}
-              placeholder="添加本周任务..."
-              disabled={isSubmitting}
-              aria-describedby="weekly-task-help"
-            />
-            <span id="weekly-task-help" className="sr-only">
-              按 Enter 键或点击按钮添加任务到本周计划
-            </span>
-            <button type="submit" disabled={isSubmitting || !newTask.trim()}>
-              {isSubmitting ? '添加中...' : '添加任务'}
-            </button>
-          </form>
-
-          <section className="weekly-tasks" aria-labelledby="weekly-tasks-title">
-            <h2 id="weekly-tasks-title" className="sr-only">本周任务列表</h2>
-            <ul className="simple-list">
-              {weeklyTasks.length === 0 && <li className="empty-state">暂无本周计划</li>}
-              {weeklyTasks.map(task => (
-                <li key={task.id} className="simple-task">
-                  <span className="task-text">{task.text}</span>
-                  <div className="task-actions">
-                    <button
-                      onClick={() => toggleWeeklyTask(task.id)}
-                      aria-label={task.done ? "标记为未完成" : "标记为已完成"}
-                      disabled={isSubmitting}
-                    >
-                      {task.done ? '✓' : '○'}
-                    </button>
-                    <button
-                      onClick={() => deleteWeeklyTask(task.id)}
-                      title="删除任务"
-                      className="delete-btn"
-                      disabled={isSubmitting}
-                      aria-label="删除任务"
-                    >
-                      ×
-                    </button>
+              <DragOverlay>
+                {activeId ? (
+                  <div className="rounded-md border bg-card px-3 py-2 text-sm shadow-lg">
+                    {findTask(activeId)?.text}
                   </div>
-                </li>
-              ))}
-            </ul>
-          </section>
-        </>
-      )}
-    </main>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+          </div>
+        )}
+
+        {/* Night View */}
+        {view === 'night' && (
+          <Card className="mx-auto max-w-2xl">
+            <CardHeader>
+              <CardTitle>What can I do for you while you sleep?</CardTitle>
+              <CardDescription>tasks collected last night, I will complete them while you sleep</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {botTasks.length === 0 ? (
+                <p className="py-8 text-center text-muted-foreground">No sleep tasks</p>
+              ) : (
+                botTasks.map(task => (
+                  <div key={task.id} className="flex items-center justify-between rounded-md border px-4 py-3">
+                    <span className="text-sm">{task.text}</span>
+                    <Badge variant={task.done ? "default" : "secondary"}>
+                      {task.done ? "Done" : "Pending"}
+                    </Badge>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* History View */}
+        {view === 'history' && (
+          <>
+            {!selectedDate ? (
+              <Card className="mx-auto max-w-3xl">
+                <CardHeader>
+                  <CardTitle>History Records</CardTitle>
+                  <CardDescription>View past task completion history</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {archivedDates.length === 0 ? (
+                    <p className="py-8 text-center text-muted-foreground">No history records</p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+                      {archivedDates.map(date => (
+                        <Button
+                          key={date}
+                          variant="outline"
+                          className="justify-start"
+                          onClick={() => setSelectedDate(date)}
+                        >
+                          {date}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ) : historyTasks && (
+              <div className="space-y-6">
+                <div className="flex items-center gap-4">
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedDate(null)}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back
+                  </Button>
+                  <div>
+                    <h2 className="text-lg font-semibold">{selectedDate}</h2>
+                    <p className="text-sm text-muted-foreground">History Records (Read Only)</p>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-3">
+                  {['backlog', 'inProgress', 'done'].map((section) => {
+                    const titles = { backlog: 'Backlog', inProgress: 'In Progress', done: 'Done' };
+                    const items = historyTasks.tasks?.[section] || [];
+                    return (
+                      <Card key={section}>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm font-medium">{titles[section]}</CardTitle>
+                          <CardDescription>{items.length} items</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          {items.map(task => (
+                            <div key={task.id} className="rounded-md border px-3 py-2 text-sm">
+                              {task.text}
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Weekly View */}
+        {view === 'weekly' && (
+          <div className="mx-auto max-w-2xl space-y-6">
+
+
+            <form onSubmit={addWeeklyTask} className="flex gap-2">
+              <Input
+                type="text"
+                value={newTask}
+                onChange={(e) => setNewTask(e.target.value)}
+                placeholder="Add weekly task..."
+                disabled={isSubmitting}
+                className="flex-1"
+              />
+              <Button type="submit" disabled={isSubmitting || !newTask.trim()}>
+                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                <span className="ml-1.5">Add</span>
+              </Button>
+            </form>
+
+            <Card>
+              <CardContent className="divide-y pt-6">
+                {weeklyTasks.length === 0 ? (
+                  <p className="py-8 text-center text-muted-foreground">No weekly plans</p>
+                ) : (
+                  weeklyTasks.map(task => (
+                    <div key={task.id} className="group flex items-center gap-3 py-3">
+                      <button
+                        onClick={() => toggleWeeklyTask(task.id)}
+                        className="flex-shrink-0"
+                        disabled={isSubmitting}
+                      >
+                        {task.done ? (
+                          <CheckCircle2 className="h-5 w-5 text-primary" />
+                        ) : (
+                          <Circle className="h-5 w-5 text-muted-foreground" />
+                        )}
+                      </button>
+                      <span className={cn("flex-1 text-sm", task.done && "text-muted-foreground line-through")}>
+                        {task.text}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 opacity-0 group-hover:opacity-100"
+                        onClick={() => deleteWeeklyTask(task.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </main>
+    </div>
   );
 }

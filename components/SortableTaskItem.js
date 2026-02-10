@@ -3,8 +3,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { cn } from '../lib/utils';
-import { Flag, GripVertical } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Flag, GripVertical, Trash2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 export default function SortableTaskItem({ task, section, onDelete, onEditSave, onMove, onToggleFlag }) {
     const {
@@ -16,11 +18,7 @@ export default function SortableTaskItem({ task, section, onDelete, onEditSave, 
         isDragging,
     } = useSortable({
         id: task.id,
-        data: {
-            type: 'Task',
-            task,
-            section,
-        },
+        data: { type: 'Task', task, section },
     });
 
     const style = {
@@ -48,7 +46,7 @@ export default function SortableTaskItem({ task, section, onDelete, onEditSave, 
         if (editText.trim() !== task.text) {
             onEditSave(task.id, editText, section);
         } else {
-            setEditText(task.text); // Reset if cancelled/empty
+            setEditText(task.text);
         }
     };
 
@@ -63,38 +61,32 @@ export default function SortableTaskItem({ task, section, onDelete, onEditSave, 
 
     if (isDragging) {
         return (
-            <li
+            <div
                 ref={setNodeRef}
                 style={style}
-                className="task-item dragging"
-            >
-            </li>
+                className="h-10 rounded-md border-2 border-dashed border-primary/20 bg-muted"
+            />
         );
     }
 
     return (
-        <li
+        <div
             ref={setNodeRef}
             style={style}
             {...attributes}
             className={cn(
-                "task-item",
-                isEditing ? "editing" : "",
-                task.flagged ? "flagged" : ""
+                "group flex items-center gap-2 rounded-md border px-3 py-2",
+                task.flagged && "border-destructive/50 bg-destructive/5"
             )}
             onDoubleClick={handleDoubleClick}
         >
-            {/* Drag handle */}
             <button
-                className="drag-handle"
+                className="cursor-grab touch-none text-muted-foreground/50 hover:text-muted-foreground"
                 {...listeners}
-                title="拖拽移动"
-                aria-label="拖拽移动"
             >
-                <GripVertical size={16} />
+                <GripVertical className="h-4 w-4" />
             </button>
 
-            {/* Flag button */}
             <button
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
@@ -102,30 +94,42 @@ export default function SortableTaskItem({ task, section, onDelete, onEditSave, 
                     e.stopPropagation();
                     onToggleFlag?.(task.id, section);
                 }}
-                className={cn("flag-btn", task.flagged ? "flagged" : "")}
-                title={task.flagged ? "取消标记" : "标记重要"}
-                aria-label={task.flagged ? "取消标记" : "标记重要"}
+                className={cn(
+                    "text-muted-foreground/50 hover:text-destructive",
+                    task.flagged && "text-destructive"
+                )}
             >
-                <Flag size={16} />
+                <Flag className={cn("h-4 w-4", task.flagged && "fill-current")} />
             </button>
 
             {isEditing ? (
-                <input
+                <Input
                     ref={inputRef}
                     type="text"
                     value={editText}
                     onChange={(e) => setEditText(e.target.value)}
                     onBlur={handleBlur}
                     onKeyDown={handleKeyDown}
-                    className="task-text-input"
+                    className="h-7 flex-1 text-sm"
                     onClick={(e) => e.stopPropagation()}
                     onMouseDown={(e) => e.stopPropagation()}
                     onPointerDown={(e) => e.stopPropagation()}
                 />
             ) : (
-                <span className="task-text" title={task.text}>{task.text}</span>
+                <span className="flex-1 text-sm">{task.text}</span>
             )}
 
-        </li>
+            <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 opacity-0 group-hover:opacity-100"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(task.id);
+                }}
+            >
+                <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+        </div>
     );
 }
