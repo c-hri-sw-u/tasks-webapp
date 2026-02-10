@@ -96,10 +96,16 @@ function parseTasks(content) {
         } else if (line.startsWith('- [') && currentSection) {
             const idMatch = line.match(/\[#([a-zA-Z0-9_-]+)\]/);
             const id = idMatch ? idMatch[1] : Date.now().toString();
-            const text = line.replace(/^- \[[ x]\] \[#([a-zA-Z0-9_-]+)\] /, '').trim();
+            let text = line.replace(/^- \[[ x]\] \[#([a-zA-Z0-9_-]+)\] /, '').trim();
             const isDone = line.includes('- [x]');
 
-            sections[currentSection].push({ id, text, done: isDone });
+            // Parse flagged status (🚩 prefix)
+            const isFlagged = text.startsWith('🚩 ');
+            if (isFlagged) {
+                text = text.replace(/^🚩 /, '');
+            }
+
+            sections[currentSection].push({ id, text, done: isDone, flagged: isFlagged });
         }
     }
 
@@ -158,31 +164,41 @@ function generateTasksMarkdown(content, sections) {
     let output = [];
     let currentSection = null;
 
+    const formatTask = (task, checked) => {
+        const checkbox = checked ? '[x]' : '[ ]';
+        const flag = task.flagged ? '🚩 ' : '';
+        return `- ${checkbox} [#${task.id}] ${flag}${task.text}`;
+    };
+
     for (const line of lines) {
         if (line.startsWith('## 📋 Backlog')) {
             currentSection = 'backlog';
             output.push(line);
             output.push('');
             for (const task of sections.backlog) {
-                output.push(`- [ ] [#${task.id}] ${task.text}`);
+                output.push(formatTask(task, false));
             }
         } else if (line.startsWith('## 🚀 In Progress')) {
             currentSection = 'inProgress';
             output.push(line);
             output.push('');
             for (const task of sections.inProgress) {
-                output.push(`- [ ] [#${task.id}] ${task.text}`);
+                output.push(formatTask(task, false));
             }
         } else if (line.startsWith('## ✅ Done')) {
             currentSection = 'done';
             output.push(line);
             output.push('');
             for (const task of sections.done) {
-                output.push(`- [x] [#${task.id}] ${task.text}`);
+                output.push(formatTask(task, true));
             }
-        } else if (line.startsWith('- [') && currentSection) {
-            // Skip old task lines
+        } else if (currentSection && (line.startsWith('- [') || line.trim() === '')) {
+            // Skip old task lines and empty lines within task sections
         } else {
+            // New section or content outside task sections
+            if (line.startsWith('##') || line.startsWith('#')) {
+                currentSection = null;
+            }
             output.push(line);
         }
     }
@@ -391,10 +407,7 @@ async function updateTask({ taskId, status, text, flagged, view, date }) {
     if (foundTask) {
         // Update properties
         if (text !== undefined) foundTask.text = text;
-        if (flagged !== undefined) foundTask.flagged = flagged; // Note: Markdown persistence of flag? 
-        // The original parser doesn't seem to parse 'flagged'. 
-        // So persisting 'flagged' might not work unless we change generic parser/generator.
-        // Ignored for now to match Route.js capability (or lack thereof).
+        if (flagged !== undefined) foundTask.flagged = flagged;
 
         // If moved
         if (status && status !== currentSection) {

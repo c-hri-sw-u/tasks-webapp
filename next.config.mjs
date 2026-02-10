@@ -4,4 +4,4 @@ const nextConfig = {
   output: process.env.NEXT_EXPORT ? 'export' : undefined,
 }
 
-module.exports = nextConfig
+export default nextConfig;

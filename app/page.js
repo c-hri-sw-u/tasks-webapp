@@ -40,6 +40,7 @@ import {
   Loader2,
   CheckSquare
 } from 'lucide-react';
+import { Header } from '@/components/header';
 
 export default function Home() {
   const [view, setView] = useState('today');
@@ -374,17 +375,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center">
-          <div className="flex items-center space-x-2">
-            <CheckSquare className="h-6 w-6" />
-            <span className="font-bold">Task Manager</span>
-          </div>
-          <div className="flex flex-1 items-center justify-end space-x-2">
-            <ThemeSwitcher />
-          </div>
-        </div>
-      </header>
+      <Header />
 
       <main className="container py-6">
         {/* Navigation Tabs */}
@@ -429,7 +420,6 @@ export default function Home() {
               />
               <Button type="submit" disabled={isSubmitting || !newTask.trim()}>
                 {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                <span className="ml-1.5 hidden sm:inline">Add</span>
               </Button>
             </form>
 
@@ -622,7 +612,6 @@ export default function Home() {
               />
               <Button type="submit" disabled={isSubmitting || !newTask.trim()}>
                 {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                <span className="ml-1.5">Add</span>
               </Button>
             </form>
 

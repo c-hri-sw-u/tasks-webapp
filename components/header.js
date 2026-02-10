@@ -1,25 +1,40 @@
-"use client";
-
 import { ThemeSwitcher } from "@/components/ui/theme-switcher";
-import { CheckSquare } from "lucide-react";
+import Image from "next/image";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 
 export function Header() {
+  const { resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const logoSrc = mounted && resolvedTheme === "light" ? "/logo-light.svg" : "/logo.svg";
+
   return (
-    <header className="flex items-center justify-between mb-8">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500 text-white shadow-lg shadow-blue-500/30">
-          <CheckSquare className="h-5 w-5" />
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      {/* 自定义 Titlebar - 可拖动区域 */}
+      <div
+        className="h-8 w-full"
+        style={{ WebkitAppRegion: "drag" }}
+      />
+      <div className="container flex h-14 items-center">
+        <div className="flex items-center space-x-2">
+          <Image
+            src={logoSrc}
+            width={24}
+            height={24}
+            alt="Logo"
+            className="rounded-md shadow-[0_0_20px_2px_rgba(0,0,0,0.15)] dark:shadow-[0_0_20px_2px_rgba(255,255,255,0.)]"
+          />
+          <span className="font-bold">Task Manager</span>
         </div>
-        <div>
-          <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">
-            Task Manager
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Organize your day, achieve your goals
-          </p>
+        <div className="flex flex-1 items-center justify-end space-x-2" style={{ WebkitAppRegion: "no-drag" }}>
+          <ThemeSwitcher />
         </div>
       </div>
-      <ThemeSwitcher />
     </header>
   );
 }
